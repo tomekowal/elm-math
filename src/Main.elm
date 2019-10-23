@@ -1,8 +1,12 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, input, text)
-import Html.Attributes exposing (..)
+import Element exposing (Element, centerX, centerY, column, el, height, htmlAttribute, px, rgb255, spacing, width)
+import Element.Background as Background
+import Element.Font as Font
+import Element.Input as Input
+import Html exposing (Html, button, div, text)
+import Html.Attributes exposing (attribute)
 import Html.Events exposing (onClick, onInput)
 import Random
 import Time
@@ -93,7 +97,7 @@ update msg game =
                             String.toInt stringGuess
                     in
                     if isCorrect game.puzzle guess then
-                        ( { game | time = game.time + 1, guess = Nothing }
+                        ( { game | time = game.time + 1, guess = Nothing, score = game.score + 1 }
                         , Random.generate NewPuzzle puzzleGenerator
                         )
 
@@ -130,29 +134,41 @@ subscriptions game =
 
 view : Game -> Html Msg
 view game =
-    div []
+    Element.layout [] (container game)
+
+
+container : Game -> Element Msg
+container game =
+    column [ spacing 10, centerX ]
         ([ timer game
-         , div [] [ text "Score: 0" ]
-         , div [] [ text (puzzleToString game.puzzle) ]
-         , input [ value (guessToString game.guess), onInput Guess ] []
+         , el defaultStyle (Element.text "Score: 0")
+         , el defaultStyle (Element.text (puzzleToString game.puzzle))
+         , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: defaultStyle)
+            { text = guessToString game.guess
+            , onChange = Guess
+            , placeholder = Nothing
+            , label = Input.labelHidden "Guess"
+            }
          ]
             ++ maybeTryAgainButton game
         )
 
 
-timer : Game -> Html Msg
+timer : Game -> Element Msg
 timer game =
     case game.time of
         0 ->
-            div [] [ text "Game Over!" ]
+            el defaultStyle (Element.text "Game Over!")
 
         time ->
-            div
-                [ style "width" (timerWidth time)
-                , style "background-color" "red"
-                , style "height" "20px"
-                ]
-                []
+            el
+                ([ width (px (timerWidth time))
+                 , Background.color primaryColor
+                 , height (px 20)
+                 ]
+                    ++ defaultStyle
+                )
+                Element.none
 
 
 puzzleToString : Puzzle -> String
@@ -160,16 +176,20 @@ puzzleToString ( left, right ) =
     String.fromInt left ++ " x " ++ String.fromInt right
 
 
-timerWidth : Int -> String
+timerWidth : Int -> Int
 timerWidth x =
-    String.concat [ String.fromInt (x * 20), "px" ]
+    x * 20
 
 
-maybeTryAgainButton : Game -> List (Html Msg)
+maybeTryAgainButton : Game -> List (Element Msg)
 maybeTryAgainButton game =
     case game.time of
         0 ->
-            [ button [ onClick Restart ] [ text "Try again!" ] ]
+            [ Input.button defaultStyle
+                { label = Element.text "Try again!"
+                , onPress = Just Restart
+                }
+            ]
 
         time ->
             []
@@ -205,3 +225,15 @@ factorGenerator =
 puzzleGenerator : Random.Generator Puzzle
 puzzleGenerator =
     Random.pair factorGenerator factorGenerator
+
+
+defaultStyle =
+    [ centerX, centerY, Font.size 50 ]
+
+
+primaryColor =
+    rgb255 240 154 154
+
+
+numericKeyboardAttr =
+    attribute "pattern" "\\d*"

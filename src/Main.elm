@@ -1,147 +1,207 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div, text, input, button)
+import Html exposing (Html, button, div, input, text)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput, onClick)
-import Time
+import Html.Events exposing (onClick, onInput)
 import Random
+import Time
+
+
 
 -- MAIN
 
+
 main =
-  Browser.element { init = init
-                  , update = update
-                  , view = view
-                  , subscriptions = subscriptions
-                  }
+    Browser.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
+
+
+
 -- MODEL
 
-type alias Guess = Maybe Int
-type alias Time = Int
-type alias Puzzle = (Int, Int)
-type Game = Running Guess Time Puzzle
-          | Stopped Puzzle
 
-init : () -> (Game, Cmd Msg)
-init _ = (Running Nothing 20 (0, 0), Random.generate NewPuzzle puzzleGenerator)
+type alias Guess =
+    Maybe Int
+
+
+type alias Time =
+    Int
+
+
+type alias Puzzle =
+    ( Int, Int )
+
+
+type alias Game =
+    { guess : Guess
+    , time : Time
+    , puzzle : Puzzle
+    , score : Int
+    }
+
+
+init : () -> ( Game, Cmd Msg )
+init _ =
+    let
+        game =
+            Game Nothing 20 ( 0, 0 ) 0
+
+        generator =
+            Random.generate NewPuzzle puzzleGenerator
+    in
+    ( game, generator )
+
+
 
 -- UPDATE
 
-type Msg = Guess String
-         | Restart
-         | Tick Time.Posix
-         | NewPuzzle Puzzle
 
-update : Msg -> Game -> (Game, Cmd Msg)
+type Msg
+    = Guess String
+    | Restart
+    | Tick Time.Posix
+    | NewPuzzle Puzzle
+
+
+update : Msg -> Game -> ( Game, Cmd Msg )
 update msg game =
-  case msg of
-    Guess string ->
-      case game of
-        Running _ time puzzle ->
-          if isCorrect puzzle (String.toInt string) then
-            (Running Nothing (time + 1) puzzle, Random.generate NewPuzzle puzzleGenerator)
-          else
-            (Running (String.toInt string) time puzzle, Cmd.none)
-        Stopped puzzle ->
-          (Stopped puzzle, Cmd.none)
-    Restart ->
-      case game of
-        Running _ _ _ ->
-          (game, Cmd.none)
-        Stopped _ ->
-          init ()
-    Tick _ ->
-      case game of
-        Running guess 0 puzzle ->
-          (Stopped puzzle, Cmd.none)
-        Running guess time puzzle ->
-          (Running guess (time - 1) puzzle, Cmd.none)
-        Stopped guess ->
-          (Stopped guess, Cmd.none)
-    NewPuzzle puzzle ->
-      case game of
-        Running guess time _ ->
-          (Running guess time puzzle, Cmd.none)
-        Stopped _ ->
-          (Stopped puzzle, Cmd.none)
+    case game.time of
+        0 ->
+            case msg of
+                Tick _ ->
+                    ( game, Cmd.none )
+
+                NewPuzzle _ ->
+                    ( game, Cmd.none )
+
+                Guess _ ->
+                    ( game, Cmd.none )
+
+                Restart ->
+                    init ()
+
+        time ->
+            case msg of
+                Guess stringGuess ->
+                    let
+                        guess =
+                            String.toInt stringGuess
+                    in
+                    if isCorrect game.puzzle guess then
+                        ( { game | time = game.time + 1, guess = Nothing }
+                        , Random.generate NewPuzzle puzzleGenerator
+                        )
+
+                    else
+                        ( { game | guess = guess }, Cmd.none )
+
+                Restart ->
+                    ( game, Cmd.none )
+
+                Tick _ ->
+                    ( { game | time = time - 1 }, Cmd.none )
+
+                NewPuzzle puzzle ->
+                    ( { game | puzzle = puzzle }, Cmd.none )
+
+
 
 -- SUBSCRIPTIONS
 
+
 subscriptions : Game -> Sub Msg
 subscriptions game =
-  case game of
-    Running _ _ _ ->
-      Time.every 1000 Tick
-    Stopped _ ->
-      Sub.none
+    case game.time of
+        0 ->
+            Sub.none
+
+        time ->
+            Time.every 1000 Tick
+
+
 
 -- VIEW
 
+
 view : Game -> Html Msg
 view game =
-  div []
-    (
-      [ timer game
-      , div [] [ text "Score: 0" ]
-      , div [] [ text (puzzleToString game) ]
-      , input [ value (guessToString game), onInput Guess ] []
-      ] ++ maybeTryAgainButton game
-    )
+    div []
+        ([ timer game
+         , div [] [ text "Score: 0" ]
+         , div [] [ text (puzzleToString game.puzzle) ]
+         , input [ value (guessToString game.guess), onInput Guess ] []
+         ]
+            ++ maybeTryAgainButton game
+        )
+
 
 timer : Game -> Html Msg
 timer game =
-  case game of
-    Running guess time _ ->
-      div [ style "width" (timerWidth time)
-          , style "background-color" "red"
-          , style "height" "20px"
-          ] []
-    Stopped _ ->
-      div [] [ text "Game Over!" ]
+    case game.time of
+        0 ->
+            div [] [ text "Game Over!" ]
 
-puzzleToString : Game -> String
-puzzleToString game =
-  case game of
-    Running _ _ (left, right) ->
-      (String.fromInt left) ++ " x " ++ (String.fromInt right)
-    Stopped (left, right) ->
-      (String.fromInt left) ++ " x " ++ (String.fromInt right)
+        time ->
+            div
+                [ style "width" (timerWidth time)
+                , style "background-color" "red"
+                , style "height" "20px"
+                ]
+                []
+
+
+puzzleToString : Puzzle -> String
+puzzleToString ( left, right ) =
+    String.fromInt left ++ " x " ++ String.fromInt right
+
 
 timerWidth : Int -> String
 timerWidth x =
-  String.concat [ (String.fromInt (x * 20)), "px" ]
+    String.concat [ String.fromInt (x * 20), "px" ]
+
 
 maybeTryAgainButton : Game -> List (Html Msg)
 maybeTryAgainButton game =
-  case game of
-    Running _ _ _ ->
-      []
-    Stopped _ ->
-      [ button [ onClick Restart ] [ text "Try again!" ] ]
+    case game.time of
+        0 ->
+            [ button [ onClick Restart ] [ text "Try again!" ] ]
 
-guessToString : Game -> String
-guessToString game =
-  case game of
-    Running (Just int) _ _ ->
-      String.fromInt int
-    Running Nothing _ _ ->
-      ""
-    Stopped _ ->
-      ""
+        time ->
+            []
+
+
+guessToString : Guess -> String
+guessToString guess =
+    case guess of
+        Just int ->
+            String.fromInt int
+
+        Nothing ->
+            ""
+
 
 isCorrect : Puzzle -> Guess -> Bool
 isCorrect puzzle guess =
-  case guess of
-    Just guessValue ->
-      case puzzle of
-        (left, right) ->
-          left * right == guessValue
-    Nothing ->
-      False
+    case guess of
+        Just guessValue ->
+            case puzzle of
+                ( left, right ) ->
+                    left * right == guessValue
+
+        Nothing ->
+            False
+
 
 factorGenerator : Random.Generator Int
-factorGenerator = Random.int 0 10
+factorGenerator =
+    Random.int 0 10
+
 
 puzzleGenerator : Random.Generator Puzzle
-puzzleGenerator = Random.pair factorGenerator factorGenerator
+puzzleGenerator =
+    Random.pair factorGenerator factorGenerator

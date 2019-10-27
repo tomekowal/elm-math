@@ -5203,6 +5203,33 @@ var $author$project$Main$Game = F5(
 var $author$project$Main$NewPuzzle = function (a) {
 	return {$: 'NewPuzzle', a: a};
 };
+var $author$project$Main$NoOp = {$: 'NoOp'};
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $elm$core$Task$onError = _Scheduler_onError;
+var $elm$core$Task$attempt = F2(
+	function (resultToMessage, task) {
+		return $elm$core$Task$command(
+			$elm$core$Task$Perform(
+				A2(
+					$elm$core$Task$onError,
+					A2(
+						$elm$core$Basics$composeL,
+						A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+						$elm$core$Result$Err),
+					A2(
+						$elm$core$Task$andThen,
+						A2(
+							$elm$core$Basics$composeL,
+							A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+							$elm$core$Result$Ok),
+						task))));
+	});
+var $elm$core$Platform$Cmd$batch = _Platform_batch;
+var $elm$browser$Browser$Dom$focus = _Browser_call('focus');
 var $elm$random$Random$Generate = function (a) {
 	return {$: 'Generate', a: a};
 };
@@ -5310,7 +5337,25 @@ var $elm$random$Random$generate = F2(
 			$elm$random$Random$Generate(
 				A2($elm$random$Random$map, tagger, generator)));
 	});
+var $author$project$Puzzle$Multiplication = F2(
+	function (a, b) {
+		return {$: 'Multiplication', a: a, b: b};
+	});
+var $author$project$Puzzle$initial = A2($author$project$Puzzle$Multiplication, 0, 0);
 var $author$project$Main$initialSettings = {addition: true};
+var $elm$random$Random$andThen = F2(
+	function (callback, _v0) {
+		var genA = _v0.a;
+		return $elm$random$Random$Generator(
+			function (seed) {
+				var _v1 = genA(seed);
+				var result = _v1.a;
+				var newSeed = _v1.b;
+				var _v2 = callback(result);
+				var genB = _v2.a;
+				return genB(newSeed);
+			});
+	});
 var $elm$core$Bitwise$and = _Bitwise_and;
 var $elm$core$Basics$negate = function (n) {
 	return -n;
@@ -5353,7 +5398,10 @@ var $elm$random$Random$int = F2(
 				}
 			});
 	});
-var $author$project$Main$factorGenerator = A2($elm$random$Random$int, 0, 10);
+var $author$project$Puzzle$Addition = F2(
+	function (a, b) {
+		return {$: 'Addition', a: a, b: b};
+	});
 var $elm$random$Random$map2 = F3(
 	function (func, _v0, _v1) {
 		var genA = _v0.a;
@@ -5371,28 +5419,50 @@ var $elm$random$Random$map2 = F3(
 					seed2);
 			});
 	});
-var $elm$random$Random$pair = F2(
-	function (genA, genB) {
-		return A3(
-			$elm$random$Random$map2,
-			F2(
-				function (a, b) {
-					return _Utils_Tuple2(a, b);
-				}),
-			genA,
-			genB);
+var $author$project$Puzzle$zeroToTen = A2($elm$random$Random$int, 0, 10);
+var $author$project$Puzzle$addGenerator = A3($elm$random$Random$map2, $author$project$Puzzle$Addition, $author$project$Puzzle$zeroToTen, $author$project$Puzzle$zeroToTen);
+var $author$project$Puzzle$Division = F2(
+	function (a, b) {
+		return {$: 'Division', a: a, b: b};
 	});
-var $author$project$Main$puzzleGenerator = A2($elm$random$Random$pair, $author$project$Main$factorGenerator, $author$project$Main$factorGenerator);
+var $author$project$Puzzle$oneToTen = A2($elm$random$Random$int, 1, 10);
+var $author$project$Puzzle$divGenerator = A3($elm$random$Random$map2, $author$project$Puzzle$Division, $author$project$Puzzle$oneToTen, $author$project$Puzzle$zeroToTen);
+var $author$project$Puzzle$multGenerator = A3($elm$random$Random$map2, $author$project$Puzzle$Multiplication, $author$project$Puzzle$zeroToTen, $author$project$Puzzle$zeroToTen);
+var $author$project$Puzzle$Subtraction = F2(
+	function (a, b) {
+		return {$: 'Subtraction', a: a, b: b};
+	});
+var $author$project$Puzzle$subGenerator = A3($elm$random$Random$map2, $author$project$Puzzle$Subtraction, $author$project$Puzzle$zeroToTen, $author$project$Puzzle$zeroToTen);
+var $author$project$Puzzle$intToPuzzle = function (_int) {
+	switch (_int) {
+		case 1:
+			return $author$project$Puzzle$multGenerator;
+		case 2:
+			return $author$project$Puzzle$divGenerator;
+		case 3:
+			return $author$project$Puzzle$addGenerator;
+		default:
+			return $author$project$Puzzle$subGenerator;
+	}
+};
+var $author$project$Puzzle$puzzleGenerator = A2(
+	$elm$random$Random$andThen,
+	$author$project$Puzzle$intToPuzzle,
+	A2($elm$random$Random$int, 1, 4));
 var $author$project$Main$init = function (_v0) {
-	var generator = A2($elm$random$Random$generate, $author$project$Main$NewPuzzle, $author$project$Main$puzzleGenerator);
-	var game = A5(
-		$author$project$Main$Game,
-		$elm$core$Maybe$Nothing,
-		20,
-		_Utils_Tuple2(0, 0),
-		0,
-		$author$project$Main$initialSettings);
-	return _Utils_Tuple2(game, generator);
+	var generator = A2($elm$random$Random$generate, $author$project$Main$NewPuzzle, $author$project$Puzzle$puzzleGenerator);
+	var game = A5($author$project$Main$Game, $elm$core$Maybe$Nothing, 20, $author$project$Puzzle$initial, 0, $author$project$Main$initialSettings);
+	var focusEvent = A2(
+		$elm$core$Task$attempt,
+		function (_v1) {
+			return $author$project$Main$NoOp;
+		},
+		$elm$browser$Browser$Dom$focus('guess'));
+	return _Utils_Tuple2(
+		game,
+		$elm$core$Platform$Cmd$batch(
+			_List_fromArray(
+				[generator, focusEvent])));
 };
 var $author$project$Main$Tick = function (a) {
 	return {$: 'Tick', a: a};
@@ -5775,11 +5845,6 @@ var $elm$time$Time$onSelfMsg = F3(
 				A2($elm$core$Task$andThen, tellTaggers, $elm$time$Time$now));
 		}
 	});
-var $elm$core$Basics$composeL = F3(
-	function (g, f, x) {
-		return g(
-			f(x));
-	});
 var $elm$time$Time$subMap = F2(
 	function (f, _v0) {
 		var interval = _v0.a;
@@ -5807,18 +5872,36 @@ var $author$project$Main$subscriptions = function (game) {
 		return A2($elm$time$Time$every, 1000, $author$project$Main$Tick);
 	}
 };
+var $author$project$Puzzle$isCorrect = F2(
+	function (puzzle, guess) {
+		switch (puzzle.$) {
+			case 'Multiplication':
+				var left = puzzle.a;
+				var right = puzzle.b;
+				return _Utils_eq(left * right, guess);
+			case 'Division':
+				var left = puzzle.a;
+				var right = puzzle.b;
+				return _Utils_eq(right, guess);
+			case 'Addition':
+				var left = puzzle.a;
+				var right = puzzle.b;
+				return _Utils_eq(left + right, guess);
+			default:
+				var left = puzzle.a;
+				var right = puzzle.b;
+				return _Utils_eq(right, guess);
+		}
+	});
 var $author$project$Main$isCorrect = F2(
 	function (puzzle, guess) {
 		if (guess.$ === 'Just') {
 			var guessValue = guess.a;
-			var left = puzzle.a;
-			var right = puzzle.b;
-			return _Utils_eq(left * right, guessValue);
+			return A2($author$project$Puzzle$isCorrect, puzzle, guessValue);
 		} else {
 			return false;
 		}
 	});
-var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Main$updateSettings = F2(
 	function (settingMsg, settings) {
@@ -5849,9 +5932,11 @@ var $author$project$Main$update = F2(
 					return _Utils_Tuple2(game, $elm$core$Platform$Cmd$none);
 				case 'Restart':
 					return $author$project$Main$init(_Utils_Tuple0);
-				default:
+				case 'Setting':
 					var settingMsg = msg.a;
 					return A2($author$project$Main$updateGameSettings, settingMsg, game);
+				default:
+					return _Utils_Tuple2(game, $elm$core$Platform$Cmd$none);
 			}
 		} else {
 			var time = _v0;
@@ -5863,7 +5948,7 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							game,
 							{guess: $elm$core$Maybe$Nothing, score: game.score + 1, time: game.time + 1}),
-						A2($elm$random$Random$generate, $author$project$Main$NewPuzzle, $author$project$Main$puzzleGenerator)) : _Utils_Tuple2(
+						A2($elm$random$Random$generate, $author$project$Main$NewPuzzle, $author$project$Puzzle$puzzleGenerator)) : _Utils_Tuple2(
 						_Utils_update(
 							game,
 							{guess: guess}),
@@ -5883,9 +5968,11 @@ var $author$project$Main$update = F2(
 							game,
 							{puzzle: puzzle}),
 						$elm$core$Platform$Cmd$none);
-				default:
+				case 'Setting':
 					var settingMsg = msg.a;
 					return A2($author$project$Main$updateGameSettings, settingMsg, game);
+				default:
+					return _Utils_Tuple2(game, $elm$core$Platform$Cmd$none);
 			}
 		}
 	});
@@ -11391,6 +11478,8 @@ var $author$project$Main$guessToString = function (guess) {
 	}
 };
 var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $author$project$Main$inputId = A2($elm$html$Html$Attributes$attribute, 'id', 'guess');
 var $mdgriffith$elm_ui$Element$Input$HiddenLabel = function (a) {
 	return {$: 'HiddenLabel', a: a};
 };
@@ -11558,12 +11647,26 @@ var $author$project$Main$maybeTryAgainButton = function (game) {
 			$mdgriffith$elm_ui$Element$text(' '));
 	}
 };
-var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
 var $author$project$Main$numericKeyboardAttr = A2($elm$html$Html$Attributes$attribute, 'pattern', '\\d*');
-var $author$project$Main$puzzleToString = function (_v0) {
-	var left = _v0.a;
-	var right = _v0.b;
-	return $elm$core$String$fromInt(left) + (' x ' + $elm$core$String$fromInt(right));
+var $author$project$Puzzle$puzzleToString = function (puzzle) {
+	switch (puzzle.$) {
+		case 'Multiplication':
+			var left = puzzle.a;
+			var right = puzzle.b;
+			return $elm$core$String$fromInt(left) + (' x ' + $elm$core$String$fromInt(right));
+		case 'Division':
+			var left = puzzle.a;
+			var right = puzzle.b;
+			return $elm$core$String$fromInt(left * right) + (' / ' + $elm$core$String$fromInt(left));
+		case 'Addition':
+			var left = puzzle.a;
+			var right = puzzle.b;
+			return $elm$core$String$fromInt(left) + (' + ' + $elm$core$String$fromInt(right));
+		default:
+			var left = puzzle.a;
+			var right = puzzle.b;
+			return $elm$core$String$fromInt(left + right) + (' - ' + $elm$core$String$fromInt(left));
+	}
 };
 var $mdgriffith$elm_ui$Internal$Model$SpacingStyle = F3(
 	function (a, b, c) {
@@ -12604,7 +12707,7 @@ var $author$project$Main$container = function (game) {
 				$mdgriffith$elm_ui$Element$el,
 				$author$project$Main$defaultStyle,
 				$mdgriffith$elm_ui$Element$text(
-					$author$project$Main$puzzleToString(game.puzzle))),
+					$author$project$Puzzle$puzzleToString(game.puzzle))),
 				A2(
 				$mdgriffith$elm_ui$Element$Input$text,
 				A2(
@@ -12613,7 +12716,10 @@ var $author$project$Main$container = function (game) {
 					A2(
 						$elm$core$List$cons,
 						$mdgriffith$elm_ui$Element$htmlAttribute($author$project$Main$numericKeyboardAttr),
-						$author$project$Main$defaultStyle)),
+						A2(
+							$elm$core$List$cons,
+							$mdgriffith$elm_ui$Element$htmlAttribute($author$project$Main$inputId),
+							$author$project$Main$defaultStyle))),
 				{
 					label: $mdgriffith$elm_ui$Element$Input$labelHidden('Guess'),
 					onChange: $author$project$Main$Guess,

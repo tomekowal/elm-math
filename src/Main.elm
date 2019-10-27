@@ -1,11 +1,11 @@
 module Main exposing (main)
 
 import Browser
-import Element exposing (Element, centerX, centerY, column, el, height, htmlAttribute, px, rgb255, spacing, width)
+import Element exposing (Element, centerX, centerY, column, el, height, htmlAttribute, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
 import Element.Input as Input
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, button, div)
 import Html.Attributes exposing (attribute)
 import Html.Events exposing (onClick, onInput)
 import Random
@@ -41,11 +41,16 @@ type alias Puzzle =
     ( Int, Int )
 
 
+type alias Settings =
+    { addition : Bool }
+
+
 type alias Game =
     { guess : Guess
     , time : Time
     , puzzle : Puzzle
     , score : Int
+    , settings : Settings
     }
 
 
@@ -53,7 +58,7 @@ init : () -> ( Game, Cmd Msg )
 init _ =
     let
         game =
-            Game Nothing 20 ( 0, 0 ) 0
+            Game Nothing 20 ( 0, 0 ) 0 initialSettings
 
         generator =
             Random.generate NewPuzzle puzzleGenerator
@@ -61,8 +66,17 @@ init _ =
     ( game, generator )
 
 
+initialSettings : Settings
+initialSettings =
+    { addition = True }
+
+
 
 -- UPDATE
+
+
+type SettingMsg
+    = Addition Bool
 
 
 type Msg
@@ -70,6 +84,7 @@ type Msg
     | Restart
     | Tick Time.Posix
     | NewPuzzle Puzzle
+    | Setting SettingMsg
 
 
 update : Msg -> Game -> ( Game, Cmd Msg )
@@ -88,6 +103,9 @@ update msg game =
 
                 Restart ->
                     init ()
+
+                Setting settingMsg ->
+                    updateGameSettings settingMsg game
 
         time ->
             case msg of
@@ -112,6 +130,25 @@ update msg game =
 
                 NewPuzzle puzzle ->
                     ( { game | puzzle = puzzle }, Cmd.none )
+
+                Setting settingMsg ->
+                    updateGameSettings settingMsg game
+
+
+updateGameSettings : SettingMsg -> Game -> ( Game, Cmd Msg )
+updateGameSettings settingMsg game =
+    let
+        newSettings =
+            updateSettings settingMsg game.settings
+    in
+    ( { game | settings = newSettings }, Cmd.none )
+
+
+updateSettings : SettingMsg -> Settings -> Settings
+updateSettings settingMsg settings =
+    case settingMsg of
+        Addition bool ->
+            { settings | addition = bool }
 
 
 
@@ -140,18 +177,22 @@ view game =
 container : Game -> Element Msg
 container game =
     column [ spacing 10, centerX ]
-        ([ timer game
-         , el defaultStyle (Element.text "Score: 0")
-         , el defaultStyle (Element.text (puzzleToString game.puzzle))
-         , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: defaultStyle)
+        [ timer game
+        , el defaultStyle (Element.text ("Score: " ++ String.fromInt game.score))
+        , el defaultStyle (Element.text (puzzleToString game.puzzle))
+        , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: defaultStyle)
             { text = guessToString game.guess
             , onChange = Guess
             , placeholder = Nothing
             , label = Input.labelHidden "Guess"
             }
-         ]
-            ++ maybeTryAgainButton game
-        )
+        , maybeTryAgainButton game
+        ]
+
+
+
+-- I want the same height of Timer Bar as Game Over text,
+-- so I insert space in empty timer
 
 
 timer : Game -> Element Msg
@@ -164,11 +205,10 @@ timer game =
             el
                 ([ width (px (timerWidth time))
                  , Background.color primaryColor
-                 , height (px 20)
                  ]
                     ++ defaultStyle
                 )
-                Element.none
+                (Element.text " ")
 
 
 puzzleToString : Puzzle -> String
@@ -181,18 +221,31 @@ timerWidth x =
     x * 20
 
 
-maybeTryAgainButton : Game -> List (Element Msg)
+maybeTryAgainButton : Game -> Element Msg
 maybeTryAgainButton game =
     case game.time of
         0 ->
-            [ Input.button defaultStyle
+            Input.button defaultStyle
                 { label = Element.text "Try again!"
                 , onPress = Just Restart
                 }
-            ]
 
         time ->
-            []
+            el defaultStyle (Element.text " ")
+
+
+settingsRow : Game -> Element Msg
+settingsRow game =
+    row defaultStyle
+        [ Input.checkbox []
+            { onChange = \bool -> Setting (Addition bool)
+            , icon = Input.defaultCheckbox
+            , checked = game.settings.addition
+            , label =
+                Input.labelBelow []
+                    (text "+")
+            }
+        ]
 
 
 guessToString : Guess -> String

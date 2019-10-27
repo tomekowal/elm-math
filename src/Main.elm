@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Browser
+import Browser.Dom
 import Element exposing (Element, centerX, centerY, column, el, height, htmlAttribute, px, rgb255, row, spacing, text, width)
 import Element.Background as Background
 import Element.Font as Font
@@ -8,7 +9,9 @@ import Element.Input as Input
 import Html exposing (Html, button, div)
 import Html.Attributes exposing (attribute)
 import Html.Events exposing (onClick, onInput)
+import Puzzle
 import Random
+import Task
 import Time
 
 
@@ -37,10 +40,6 @@ type alias Time =
     Int
 
 
-type alias Puzzle =
-    ( Int, Int )
-
-
 type alias Settings =
     { addition : Bool }
 
@@ -48,7 +47,7 @@ type alias Settings =
 type alias Game =
     { guess : Guess
     , time : Time
-    , puzzle : Puzzle
+    , puzzle : Puzzle.Puzzle
     , score : Int
     , settings : Settings
     }
@@ -58,12 +57,15 @@ init : () -> ( Game, Cmd Msg )
 init _ =
     let
         game =
-            Game Nothing 20 ( 0, 0 ) 0 initialSettings
+            Game Nothing 20 Puzzle.initial 0 initialSettings
 
         generator =
-            Random.generate NewPuzzle puzzleGenerator
+            Random.generate NewPuzzle Puzzle.puzzleGenerator
+
+        focusEvent =
+            Task.attempt (\_ -> NoOp) (Browser.Dom.focus "guess")
     in
-    ( game, generator )
+    ( game, Cmd.batch [ generator, focusEvent ] )
 
 
 initialSettings : Settings
@@ -83,8 +85,9 @@ type Msg
     = Guess String
     | Restart
     | Tick Time.Posix
-    | NewPuzzle Puzzle
+    | NewPuzzle Puzzle.Puzzle
     | Setting SettingMsg
+    | NoOp
 
 
 update : Msg -> Game -> ( Game, Cmd Msg )
@@ -107,6 +110,9 @@ update msg game =
                 Setting settingMsg ->
                     updateGameSettings settingMsg game
 
+                NoOp ->
+                    ( game, Cmd.none )
+
         time ->
             case msg of
                 Guess stringGuess ->
@@ -116,7 +122,7 @@ update msg game =
                     in
                     if isCorrect game.puzzle guess then
                         ( { game | time = game.time + 1, guess = Nothing, score = game.score + 1 }
-                        , Random.generate NewPuzzle puzzleGenerator
+                        , Random.generate NewPuzzle Puzzle.puzzleGenerator
                         )
 
                     else
@@ -133,6 +139,9 @@ update msg game =
 
                 Setting settingMsg ->
                     updateGameSettings settingMsg game
+
+                NoOp ->
+                    ( game, Cmd.none )
 
 
 updateGameSettings : SettingMsg -> Game -> ( Game, Cmd Msg )
@@ -179,8 +188,8 @@ container game =
     column [ spacing 10, centerX ]
         [ timer game
         , el defaultStyle (Element.text ("Score: " ++ String.fromInt game.score))
-        , el defaultStyle (Element.text (puzzleToString game.puzzle))
-        , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: defaultStyle)
+        , el defaultStyle (Element.text (Puzzle.puzzleToString game.puzzle))
+        , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: htmlAttribute inputId :: defaultStyle)
             { text = guessToString game.guess
             , onChange = Guess
             , placeholder = Nothing
@@ -209,11 +218,6 @@ timer game =
                     ++ defaultStyle
                 )
                 (Element.text " ")
-
-
-puzzleToString : Puzzle -> String
-puzzleToString ( left, right ) =
-    String.fromInt left ++ " x " ++ String.fromInt right
 
 
 timerWidth : Int -> Int
@@ -258,26 +262,14 @@ guessToString guess =
             ""
 
 
-isCorrect : Puzzle -> Guess -> Bool
+isCorrect : Puzzle.Puzzle -> Guess -> Bool
 isCorrect puzzle guess =
     case guess of
         Just guessValue ->
-            case puzzle of
-                ( left, right ) ->
-                    left * right == guessValue
+            Puzzle.isCorrect puzzle guessValue
 
         Nothing ->
             False
-
-
-factorGenerator : Random.Generator Int
-factorGenerator =
-    Random.int 0 10
-
-
-puzzleGenerator : Random.Generator Puzzle
-puzzleGenerator =
-    Random.pair factorGenerator factorGenerator
 
 
 defaultStyle =
@@ -290,3 +282,7 @@ primaryColor =
 
 numericKeyboardAttr =
     attribute "pattern" "\\d*"
+
+
+inputId =
+    attribute "id" "guess"

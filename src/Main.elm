@@ -187,8 +187,8 @@ container : Game -> Element Msg
 container game =
     column [ spacing 10, centerX ]
         [ timer game
-        , el defaultStyle (Element.text ("Score: " ++ String.fromInt game.score))
-        , el defaultStyle (Element.text (Puzzle.puzzleToString game.puzzle))
+        , el defaultStyle <| Element.text <| "Score: " ++ String.fromInt game.score
+        , el defaultStyle <| Element.text <| Puzzle.puzzleToString game.puzzle
         , Input.text (Input.focusedOnLoad :: htmlAttribute numericKeyboardAttr :: htmlAttribute inputId :: defaultStyle)
             { text = guessToString game.guess
             , onChange = Guess
@@ -208,11 +208,11 @@ timer : Game -> Element Msg
 timer game =
     case game.time of
         0 ->
-            el defaultStyle (Element.text "Game Over!")
+            el defaultStyle <| Element.text "Game Over!"
 
         time ->
             el
-                ([ width (px (timerWidth time))
+                ([ width <| px <| timerWidth time
                  , Background.color primaryColor
                  ]
                     ++ defaultStyle
@@ -235,14 +235,14 @@ maybeTryAgainButton game =
                 }
 
         time ->
-            el defaultStyle (Element.text " ")
+            el defaultStyle <| Element.text " "
 
 
 settingsRow : Game -> Element Msg
 settingsRow game =
     row defaultStyle
         [ Input.checkbox []
-            { onChange = \bool -> Setting (Addition bool)
+            { onChange = \bool -> Setting <| Addition bool
             , icon = Input.defaultCheckbox
             , checked = game.settings.addition
             , label =
